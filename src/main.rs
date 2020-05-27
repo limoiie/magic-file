@@ -2,6 +2,10 @@
 extern crate bitflags;
 extern crate regex;
 extern crate num_derive;
+#[macro_use]
+extern crate log;
+#[macro_use]
+extern crate lazy_static;
 
 mod str_utils;
 mod magic;
@@ -14,7 +18,7 @@ use std::path::Path;
 
 // use clap::{App, Arg};
 
-fn load_one_magic(magic_file: &Path) {
+fn load_one_magic(_magic_file: &Path) {
 //    init magic_set (magic_open -> file_ms_alloc)
 //    load magic_set (
 //      load ->

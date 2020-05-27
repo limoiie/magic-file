@@ -45,5 +45,18 @@ def check_aux_line(folder=None):
                     entry = EntryState()
 
 
+def check_if_contains_illegal_chars():
+    folder = r'/usr/share/file/magic'
+    for file in os.listdir(folder):
+        file = os.path.join(folder, file)
+        with open(file, 'rb') as f:
+            for n, l in enumerate(f.readlines()):
+                try:
+                    l.decode(encoding='utf-8')
+                except UnicodeDecodeError as e:
+                    print(e)
+                    print(f'{file}:{n}: l.strip()')
+
+
 if __name__ == '__main__':
-    fire.Fire(check_aux_line)
+    fire.Fire(check_if_contains_illegal_chars)
