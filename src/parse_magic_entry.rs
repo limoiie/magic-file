@@ -5,8 +5,8 @@ use std::io::BufRead;
 use std::fmt::{Debug, Display};
 use std::iter::Peekable;
 
-use crate::parse_magic_aux_line::{AuxFactor, AuxInfo};
-use crate::magic_line::MagicLine;
+use crate::magic_line::{MagicLine, Aux};
+use crate::magic::{AuxFactor, AuxLine};
 
 
 #[derive(Debug, Default)]
@@ -40,20 +40,26 @@ impl MagicEntry {
         match chars.next() {
             None => return,
             Some('#') => return,
-            Some('!') => {
-                if let Some(':') = chars.next() {
-                //     match AuxInfo::parse_aux_line(&line[2..]) {
-                //         AuxInfo::Types(types) => {
-                //             self.lines.last_mut().unwrap().aux = Some(types)
-                //         }
-                //         AuxInfo::Strength(factor) => {
-                //             self.factor = Some(factor)
-                //         }
-                //     }
-                }
+            Some('!') if Some(':') == chars.next() => {
+                self.handle_aux_line(&line[2..])
             }
             _ => {
-                self.lines.push(MagicLine::parse_line(line));
+                self.handle_magic_line(line)
+            }
+        }
+    }
+
+    fn handle_magic_line(&mut self, line: &str) {
+        self.lines.push(MagicLine::parse_line(line))
+    }
+
+    fn handle_aux_line(&mut self, line: &str) {
+        match Aux::parse_line(line) {
+            AuxLine::Type(typ) => {
+                self.lines.last_mut().unwrap().attach_aux(typ);
+            }
+            AuxLine::Strength(factor) => {
+                self.factor = Some(factor)
             }
         }
     }

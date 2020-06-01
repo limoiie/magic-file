@@ -83,16 +83,6 @@ impl From<char> for MaskFlags {
     }
 }
 
-bitflags! {
-    pub struct OfsFlags: u16 {
-        const NONE     = 0x0000;
-        const INDIR    = 0x0001;
-        const OFFADD   = 0x0002;
-        const IOFFADD  = 0x0004;
-        const OP_INDIR = 0x0008;
-    }
-}
-
 #[repr(u8)]
 #[derive(FromPrimitive, Debug, PartialEq, Copy, Clone)]
 pub enum ValType {
@@ -373,6 +363,25 @@ impl From<u8> for Operator {
             _ => Operator::Noop,
         }
     }
+}
+
+#[derive(Debug, PartialEq)]
+pub enum AuxType {
+    Mime(String),
+    Apple(String),
+    Exts(Vec<String>)
+}
+
+#[derive(Debug, Default, PartialEq)]
+pub struct AuxFactor {
+    pub op: Operator,
+    pub val: u32,
+}
+
+#[derive(Debug, PartialEq)]
+pub enum AuxLine {
+    Type(AuxType),
+    Strength(AuxFactor),
 }
 
 #[derive(Debug, PartialEq)]

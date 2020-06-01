@@ -6,7 +6,19 @@ use std::str::FromStr;
 use crate::magic::*;
 
 use crate::magic::Expression as Expr;
-use crate::parse_magic_aux_line::AuxTypes;
+
+#[derive(Debug, Default, PartialEq)]
+pub struct Aux {
+    mime: Option<String>,
+    apple: Option<String>,
+    exts: Vec<String>,
+}
+
+impl Aux {
+    pub fn parse_line(line: &str) -> AuxLine {
+        magic_line::aux(line).unwrap()
+    }
+}
 
 #[derive(Debug, Default)]
 pub struct MagicLine {
@@ -14,7 +26,7 @@ pub struct MagicLine {
     pub exp: Rc<Expr>,
     pub desc: String,
     pub typ_code: u32,
-    pub aux: Option<AuxTypes>,
+    pub aux: Option<Aux>,
 }
 
 lazy_static! {
@@ -30,6 +42,17 @@ impl MagicLine {
         magic_line::line(line).unwrap()
     }
 
+    pub(crate) fn attach_aux(&mut self, aux_typ: AuxType) {
+        if self.aux.is_none() {
+            self.aux = Some(Default::default())
+        }
+        let aux = self.aux.as_mut().unwrap();
+        match aux_typ {
+            AuxType::Mime(m) => aux.mime = Some(m),
+            AuxType::Apple(a) => aux.apple = Some(a),
+            AuxType::Exts(e) => aux.exts = e,
+        }
+    }
 }
 
 peg::parser! {
@@ -148,6 +171,42 @@ peg::parser! {
     // ====================================================
 
 
+    // aux line ===========================================
+    pub rule aux() -> AuxLine
+      = "mime"     __ m:mime()     comment()? { m }
+      / "apple"    __ a:apple()    comment()? { a }
+      / "ext"      __ e:ext()      comment()? { e }
+      / "strength" __ s:strength() comment()? { s }
+
+    pub rule mime() -> AuxLine
+      = m:$(['0'..='9' | 'a'..='z' | 'A'..='Z' | '+' | '-' | '*' |
+             '/' | '.' | '$' | '?' | ':' | '{' | '}']*) {
+        AuxLine::Type(AuxType::Mime(m.to_string()))
+      }
+
+    pub rule apple() -> AuxLine
+      = a:$(['0'..='9' | 'a'..='z' | 'A'..='Z' | '+' | '-' | '.' |
+             '/' | '!' | '?']*) {
+        AuxLine::Type(AuxType::Apple(a.to_string()))
+      }
+
+    pub rule ext() -> AuxLine
+      = e:$(['0'..='9' | 'a'..='z' | 'A'..='Z' | '+' | '-' | ',' | '/' |
+             '!' | '@' | '?' | '_' | '$']*) {
+        AuxLine::Type(AuxType::Exts(
+          e.split('/').collect::<Vec<&str>>()
+            .iter().map(|&e| e.to_string()).collect()))
+      }
+
+    pub rule strength() -> AuxLine
+      = op:strength_op() __? val:digit_u32() {
+        AuxLine::Strength(AuxFactor { op, val })
+      }
+
+    pub rule comment() = __ ['#'] [_]*
+    // ====================================================
+
+
     // ====================================================
     //
     // util rules
@@ -160,6 +219,9 @@ peg::parser! {
 
     pub rule cmp_op() -> Operator
       = c:$( ['&' | '^' | '=' | '<' | '>' | '!'] ) { c.into() }
+
+    pub rule strength_op() -> Operator
+      = c:$( ['+' | '-' | '*' | '/'] ) { c.into() }
     // ====================================================
 
     // Value ==============================================
@@ -249,14 +311,4 @@ peg::parser! {
     rule ident() ->&'input str = $( !['0'..='9'] ['0'..='9' | 'a'..='z' | 'A'..='Z']+ )
     // ====================================================
   }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test() {
-
-    }
 }
