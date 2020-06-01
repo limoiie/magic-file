@@ -182,8 +182,9 @@ peg::parser! {
     pub rule desc() -> String
       = backspace() s:desc_content() { s.to_string() }
       / s:desc_content() { " ".to_owned() + s }
+      / eps() { String::new() }
 
-    pub rule desc_content() -> &'input str = $( (!['|'] [_])* )
+    pub rule desc_content() -> &'input str = $( (!['|'] [_])+ )
     // ====================================================
 
     // type code ==========================================
