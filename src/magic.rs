@@ -443,6 +443,14 @@ impl Value {
             Value::F64(v) => Self::cast_from(typ, v),
         }
     }
+
+    pub fn str_len(&self) -> Option<usize> {
+        match self {
+            Value::Str(s) => Some(s.len()),
+            Value::Bytes(b) => Some(b.len()),
+            _ => None
+        }
+    }
 }
 
 impl Default for Value {

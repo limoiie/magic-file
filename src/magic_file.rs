@@ -27,9 +27,19 @@ impl MagicFile {
         let mut lines_iter = read_lines(&magic_file)?.into_iter().peekable();
         while lines_iter.peek().is_some() {
             // println!("\n=================================");
-            magic.entries.push(MagicEntry::parse_entry(&mut lines_iter));
+            let entry = MagicEntry::parse_entry(&mut lines_iter);
+            magic.insert_entry(entry);
         }
+        magic.sort_by_strength();
         Ok(magic)
+    }
+
+    fn insert_entry(&mut self, entry: MagicEntry) {
+        self.entries.push(entry)
+    }
+
+    fn sort_by_strength(&mut self) {
+        self.entries.sort_by_key(MagicEntry::strength);
     }
 }
 
