@@ -12,23 +12,24 @@ where
     Ok(io::BufReader::new(file).lines())
 }
 
+#[derive(Default, Debug)]
 pub(crate) struct MagicFile {
     entries: Vec<MagicEntry>,
 }
 
 impl MagicFile {
-    pub(crate) fn parse<P>(magic_file: P) -> io::Result<()>
+    pub(crate) fn parse<P>(magic_file: P) -> io::Result<MagicFile>
     where
         P: AsRef<Path>,
     {
-        let mut lines_iter = read_lines(&magic_file)?.into_iter().peekable();
+        let mut magic = MagicFile::default();
 
+        let mut lines_iter = read_lines(&magic_file)?.into_iter().peekable();
         while lines_iter.peek().is_some() {
             // println!("\n=================================");
-            let mut me = MagicEntry::default();
-            me.parse(&mut lines_iter);
+            magic.entries.push(MagicEntry::parse_entry(&mut lines_iter));
         }
-        Ok(())
+        Ok(magic)
     }
 }
 

@@ -11,19 +11,21 @@ pub(crate) struct MagicEntry {
 }
 
 impl MagicEntry {
-    pub(crate) fn parse<P>(&mut self, lines: &mut Peekable<P>)
-    where
-        P: Iterator<Item = io::Result<String>>,
+    pub(crate) fn parse_entry<P>(lines: &mut Peekable<P>) -> MagicEntry
+        where
+            P: Iterator<Item = io::Result<String>>,
     {
+        let mut entry = MagicEntry::default();
         while let Some(line_res) = lines.peek() {
             if let Ok(line) = line_res {
-                if self.meet_new_entry(line.as_str()) {
-                    return;
+                if entry.meet_new_entry(line.as_str()) {
+                    break
                 }
-                self.digest_line(line.as_str());
+                entry.digest_line(line.as_str());
             }
             lines.next();
         }
+        entry
     }
 
     fn meet_new_entry(&self, line: &str) -> bool {
@@ -31,7 +33,7 @@ impl MagicEntry {
     }
 
     fn digest_line(&mut self, line: &str) {
-        // println!("parsing {}...", line);
+        println!("parsing {}...", line);
 
         let mut chars = line.chars();
         match chars.next() {
