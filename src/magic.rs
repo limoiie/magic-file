@@ -313,6 +313,13 @@ impl From<ValType> for SignValType {
 }
 
 #[derive(Debug, PartialEq)]
+pub enum UnOperator {
+    Absolute,
+    Relative,
+    Indirect(SignValType),
+}
+
+#[derive(Debug, PartialEq)]
 pub enum Operator {
     Noop,
     // logical
@@ -363,25 +370,6 @@ impl From<u8> for Operator {
             _ => Operator::Noop,
         }
     }
-}
-
-#[derive(Debug, PartialEq)]
-pub enum AuxType {
-    Mime(String),
-    Apple(String),
-    Exts(Vec<String>)
-}
-
-#[derive(Debug, Default, PartialEq)]
-pub struct AuxFactor {
-    pub op: Operator,
-    pub val: u32,
-}
-
-#[derive(Debug, PartialEq)]
-pub enum AuxLine {
-    Type(AuxType),
-    Strength(AuxFactor),
 }
 
 #[derive(Debug, PartialEq)]
@@ -464,13 +452,6 @@ impl Default for Value {
 }
 
 #[derive(Debug, PartialEq)]
-pub enum UnOperator {
-    Absolute,
-    Relative,
-    Indirect(SignValType),
-}
-
-#[derive(Debug, PartialEq)]
 pub enum Action {
     Num { op: Operator, val: Rc<Expression> },
     Str { flags: MaskFlags, range: u64 },
@@ -542,4 +523,23 @@ impl Default for Expression {
     fn default() -> Self {
         Expression::Val(Value::U64(0))
     }
+}
+
+#[derive(Debug, PartialEq)]
+pub enum AuxType {
+    Mime(String),
+    Apple(String),
+    Exts(Vec<String>),
+}
+
+#[derive(Debug, Default, PartialEq)]
+pub struct AuxFactor {
+    pub op: Operator,
+    pub val: u32,
+}
+
+#[derive(Debug, PartialEq)]
+pub enum AuxLine {
+    Type(AuxType),
+    Strength(AuxFactor),
 }
