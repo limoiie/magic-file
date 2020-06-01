@@ -1,34 +1,10 @@
-use num_traits::FromPrimitive;
 use num_derive::FromPrimitive;
+use num_traits::{AsPrimitive, FromPrimitive};
 use std::fmt;
+use std::rc::Rc;
 
 bitflags! {
-    struct MagicFlags: u8 {
-        const INDIR        = 0b00000001;  /* if '(...)' appears */
-        const OFFADD       = 0b00000010;  /* if '>&' or '>...(&' appears */
-        const INDIROFFADD  = 0b00000100;  /* if '>&(' appears */
-        const UNSIGNED     = 0b00001000;  /* comparison is unsigned */
-        const NOSPACE      = 0b00010000;  /* suppress space character before output */
-        const BINTEST      = 0b00100000;  /* test is for a binary type (only top-level tests) */
-        const TEXTTEST     = 0b01000000;  /* for passing to file_softmagic */
-    }
-}
-
-impl MagicFlags {
-    pub fn clear(&mut self) {
-        self.bits = 0;
-    }
-}
-
-impl From<u8> for MagicFlags {
-    fn from(bits: u8) -> Self {
-        return MagicFlags::from_bits_truncate(bits);
-    }
-}
-
-
-bitflags! {
-    pub(crate) struct StrModifier: u16 {
+    pub struct MaskFlags: u16 {
         const NONE                            = 0x0000;
         const COMPACT_WHITESPACE              = 0x0001;
         const COMPACT_OPTIONAL_WHITESPACE     = 0x0002;
@@ -50,57 +26,76 @@ bitflags! {
     }
 }
 
-impl StrModifier {
+static ALL_IN_CHARS: &str = "WwcCsbtTBHhLlJr";
+
+impl MaskFlags {
     fn all_in_chars() -> &'static str {
-        const ALL_IN_CHARS: &str = "WwcCsbtTBHhLlJr";
         return ALL_IN_CHARS;
     }
 
-    pub(crate) fn is_pstring(&self) -> bool {
+    pub fn is_pstring(&self) -> bool {
         return self.contains(
-            StrModifier::PSTRING_1_LE |
-                StrModifier::PSTRING_2_BE |
-                StrModifier::PSTRING_2_LE |
-                StrModifier::PSTRING_4_BE |
-                StrModifier::PSTRING_4_LE
+            MaskFlags::PSTRING_1_LE
+                | MaskFlags::PSTRING_2_BE
+                | MaskFlags::PSTRING_2_LE
+                | MaskFlags::PSTRING_4_BE
+                | MaskFlags::PSTRING_4_LE,
         );
     }
-}
 
-impl From<u16> for StrModifier {
-    fn from(bits: u16) -> Self {
-        return StrModifier::from_bits_truncate(bits);
+    pub fn try_from(c: char) -> Result<MaskFlags, &'static str> {
+        let t = Self::from(c);
+        if t == MaskFlags::NONE {
+            Err("")
+        } else {
+            Ok(t)
+        }
     }
 }
 
-impl From<String> for StrModifier {
+impl From<u16> for MaskFlags {
+    fn from(bits: u16) -> Self {
+        return MaskFlags::from_bits_truncate(bits);
+    }
+}
+
+impl From<String> for MaskFlags {
     fn from(s: String) -> Self {
+        MaskFlags::from(s.as_str())
+    }
+}
+
+impl From<&str> for MaskFlags {
+    fn from(s: &str) -> Self {
         if s.len() == 1 {
-            let all = StrModifier::all_in_chars();
-            if let Some(i) = all.find(s.as_str()) {
-                return StrModifier::from(1 << i as u16);
+            let all = MaskFlags::all_in_chars();
+            if let Some(i) = all.find(s) {
+                return MaskFlags::from(1 << i as u16);
             }
         }
-        panic!("Failed to parse str modifier: {}!", s)
+        MaskFlags::NONE
     }
 }
 
-impl From<&str> for StrModifier {
-    fn from(s: &str) -> Self {
-        StrModifier::from(s.to_string())
-    }
-}
-
-impl From<char> for StrModifier {
+impl From<char> for MaskFlags {
     fn from(c: char) -> Self {
-        StrModifier::from(c.to_string())
+        MaskFlags::from(c.to_string())
     }
 }
 
+bitflags! {
+    pub struct OfsFlags: u16 {
+        const NONE     = 0x0000;
+        const INDIR    = 0x0001;
+        const OFFADD   = 0x0002;
+        const IOFFADD  = 0x0004;
+        const OP_INDIR = 0x0008;
+    }
+}
 
 #[repr(u8)]
-#[derive(FromPrimitive, Debug, PartialEq)]
-pub(crate) enum CmpType {
+#[derive(FromPrimitive, Debug, PartialEq, Copy, Clone)]
+pub enum ValType {
     Invalid = 0,
     Byte,
     Short,
@@ -153,28 +148,108 @@ pub(crate) enum CmpType {
     NamesSize,
 }
 
-impl Default for CmpType {
-    fn default() -> Self { CmpType::Invalid }
+impl Default for ValType {
+    fn default() -> Self {
+        ValType::Invalid
+    }
 }
 
-impl CmpType {
-    pub(crate) fn is_string(&self) -> bool {
+impl ValType {
+    pub fn is_string(&self) -> bool {
         match self {
-            CmpType::String |
-            CmpType::PString |
-            CmpType::Regex |
-            CmpType::BEString16 |
-            CmpType::LEString16 |
-            CmpType::Search |
-            CmpType::Name |
-            CmpType::Use |
-            CmpType::Indirect => true,
-            _ => false
+            ValType::String
+            | ValType::PString
+            | ValType::Regex
+            | ValType::BEString16
+            | ValType::LEString16
+            | ValType::Search
+            | ValType::Name
+            | ValType::Use
+            | ValType::Der
+            | ValType::Indirect => true,
+            _ => false,
         }
     }
 
-    fn all() -> Vec<CmpType> {
-        let mut all: Vec<CmpType> = vec![];
+    pub fn is_i8(&self) -> bool {
+        *self == ValType::Byte
+    }
+
+    pub fn is_i16(&self) -> bool {
+        match self {
+            ValType::Short => true,
+            ValType::BEShort => true,
+            ValType::LEShort => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_i32(&self) -> bool {
+        match self {
+            ValType::Long
+            | ValType::Date
+            | ValType::BELong
+            | ValType::BEDate
+            | ValType::LELong
+            | ValType::LEDate
+            | ValType::LDate
+            | ValType::BELDate
+            | ValType::LELDate
+            | ValType::MEDate
+            | ValType::MELDate
+            | ValType::MELong
+            | ValType::BEID3
+            | ValType::LEID3 => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_f32(&self) -> bool {
+        match self {
+            ValType::Float | ValType::BEFloat | ValType::LEFloat => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_i64(&self) -> bool {
+        match self {
+            ValType::Quad
+            | ValType::LEQuad
+            | ValType::BEQuad
+            | ValType::QDate
+            | ValType::LEQDate
+            | ValType::BEQDate
+            | ValType::QLDate
+            | ValType::LEQLDate
+            | ValType::BEQLDate
+            | ValType::QWDate
+            | ValType::LEQWDate
+            | ValType::BEQWDate => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_f64(&self) -> bool {
+        match self {
+            ValType::Double | ValType::BEDouble | ValType::LEDouble => true,
+            _ => false,
+        }
+    }
+
+    pub fn try_from<T>(c: T) -> Result<ValType, &'static str>
+    where
+        Self: From<T>,
+    {
+        let t = Self::from(c);
+        if t == ValType::Invalid {
+            Err("")
+        } else {
+            Ok(t)
+        }
+    }
+
+    fn all() -> Vec<ValType> {
+        let mut all: Vec<ValType> = vec![];
         let mut i = 0;
         while let Some(t) = FromPrimitive::from_i32(i) {
             all.push(t);
@@ -184,39 +259,82 @@ impl CmpType {
     }
 }
 
-impl From<String> for CmpType {
+impl From<String> for ValType {
     fn from(s: String) -> Self {
-        let s = s.to_lowercase();
-        for i in CmpType::all() {
-            let o = i.to_string();
-            if s == o.to_lowercase() {
-                return i;
+        Self::from(s.as_str())
+    }
+}
+
+impl From<&str> for ValType {
+    fn from(s: &str) -> Self {
+        if s.len() == 1 {
+            return Self::from(s.chars().nth(0).unwrap());
+        } else {
+            for i in ValType::all() {
+                if s == i.to_string().to_lowercase() {
+                    return i;
+                }
             }
         }
-        CmpType::Invalid
+        ValType::Invalid
     }
 }
 
-impl From<&str> for CmpType {
-    fn from(s: &str) -> Self {
-        CmpType::from(s.to_string())
+impl From<char> for ValType {
+    fn from(c: char) -> Self {
+        match c {
+            'l' => ValType::LELong,
+            'L' => ValType::BELong,
+            'm' => ValType::MELong,
+            'h' | 's' => ValType::LEShort,
+            'H' | 'S' => ValType::BEShort,
+            'c' | 'b' | 'C' | 'B' => ValType::Byte,
+            'e' | 'f' | 'g' => ValType::LEDouble,
+            'E' | 'F' | 'G' => ValType::BEDouble,
+            'i' => ValType::LEID3,
+            'I' => ValType::BEID3,
+            'q' => ValType::LEQuad,
+            'Q' => ValType::BEQuad,
+            _ => ValType::Invalid,
+        }
     }
 }
 
-impl fmt::Display for CmpType {
+impl fmt::Display for ValType {
     /// For using obj::to_string
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{:?}", self)
     }
 }
 
+#[derive(Debug, Default, PartialEq, Copy, Clone)]
+pub struct SignValType {
+    pub unsigned: bool,
+    pub typ: ValType,
+}
+
+impl From<ValType> for SignValType {
+    fn from(typ: ValType) -> Self {
+        SignValType {
+            unsigned: false,
+            typ,
+        }
+    }
+}
 
 #[derive(Debug, PartialEq)]
-pub(crate) enum MaskOp {
+pub enum Operator {
     Noop,
+    // logical
     And,
     Or,
     Xor,
+    Not,
+    // comparison
+    EQ,
+    LT,
+    GT,
+    // computation
     Add,
     Minus,
     Multiply,
@@ -224,98 +342,195 @@ pub(crate) enum MaskOp {
     Modulo,
 }
 
-impl Default for MaskOp {
-    fn default() -> Self { MaskOp::Noop }
-}
-
-impl From<&str> for MaskOp {
-    fn from(s: &str) -> Self {
-        match s {
-            "&" => MaskOp::And,
-            "|" => MaskOp::Or,
-            "^" => MaskOp::Xor,
-            "+" => MaskOp::Add,
-            "-" => MaskOp::Minus,
-            "*" => MaskOp::Multiply,
-            "/" => MaskOp::Divide,
-            "%" => MaskOp::Modulo,
-            _ => MaskOp::Noop,
-        }
+impl Default for Operator {
+    fn default() -> Self {
+        Operator::Noop
     }
 }
 
+impl From<&str> for Operator {
+    fn from(s: &str) -> Self {
+        Self::from(*s.as_bytes().first().unwrap())
+    }
+}
+
+impl From<u8> for Operator {
+    fn from(b: u8) -> Self {
+        use Operator::*;
+        match b as char {
+            '&' => And,
+            '|' => Or,
+            '^' => Xor,
+            '!' => Xor,
+            '+' => Add,
+            '-' => Minus,
+            '*' => Multiply,
+            '/' => Divide,
+            '%' => Modulo,
+            '=' => EQ,
+            '<' => LT,
+            '>' => GT,
+            _ => Operator::Noop,
+        }
+    }
+}
 
 #[derive(Debug, PartialEq)]
-pub(crate) enum RelnOp {
-    Noop,
-    And,
-    Xor,
-    Eq,
-    Less,
-    Greater,
-    Not,
+pub enum Value {
+    Str(String),
+    Bytes(Vec<u8>),
+    U8(u8),
+    U16(u16),
+    U32(u32),
+    U64(u64),
+    I8(i8),
+    I16(i16),
+    I32(i32),
+    I64(i64),
+    F32(f32),
+    F64(f64),
 }
 
-impl Default for RelnOp {
-    fn default() -> Self { RelnOp::Noop }
-}
+impl Value {
+    pub fn cast_from<T>(typ: SignValType, v: T) -> Value
+    where
+        T: AsPrimitive<u8>
+            + AsPrimitive<u16>
+            + AsPrimitive<u32>
+            + AsPrimitive<u64>
+            + AsPrimitive<i8>
+            + AsPrimitive<i16>
+            + AsPrimitive<i32>
+            + AsPrimitive<i64>
+            + AsPrimitive<f32>
+            + AsPrimitive<f64>,
+    {
+        match typ.typ {
+            t if t.is_f32() => Value::F32(v.as_()),
+            t if t.is_f64() => Value::F64(v.as_()),
+            _ => {
+                if typ.unsigned {
+                    match typ.typ {
+                        t if t.is_i8() => Value::U8(v.as_()),
+                        t if t.is_i16() => Value::U16(v.as_()),
+                        t if t.is_i32() => Value::U32(v.as_()),
+                        t if t.is_i64() => Value::U64(v.as_()),
+                        _ => Value::U64(v.as_()),
+                    }
+                } else {
+                    match typ.typ {
+                        t if t.is_i8() => Value::I8(v.as_()),
+                        t if t.is_i16() => Value::I16(v.as_()),
+                        t if t.is_i32() => Value::I32(v.as_()),
+                        t if t.is_i64() => Value::I64(v.as_()),
+                        _ => Value::I64(v.as_()),
+                    }
+                }
+            }
+        }
+    }
 
-impl From<&str> for RelnOp {
-    fn from(s: &str) -> Self {
-        match s {
-            "&" => RelnOp::And,
-            "^" => RelnOp::Xor,
-            "=" => RelnOp::Eq,
-            "<" => RelnOp::Less,
-            ">" => RelnOp::Greater,
-            "!" => RelnOp::Not,
-            _ => RelnOp::Noop,
+    pub fn cast_to(self, typ: SignValType) -> Value {
+        match self {
+            Value::Str(_) => self,
+            Value::Bytes(_) => self,
+            Value::U8(v) => Self::cast_from(typ, v),
+            Value::I8(v) => Self::cast_from(typ, v),
+            Value::U16(v) => Self::cast_from(typ, v),
+            Value::U32(v) => Self::cast_from(typ, v),
+            Value::U64(v) => Self::cast_from(typ, v),
+            Value::I16(v) => Self::cast_from(typ, v),
+            Value::I32(v) => Self::cast_from(typ, v),
+            Value::I64(v) => Self::cast_from(typ, v),
+            Value::F32(v) => Self::cast_from(typ, v),
+            Value::F64(v) => Self::cast_from(typ, v),
         }
     }
 }
 
-enum RelnVal {
-
-}
-
-
-enum CondType {
-    None = 0,
-    If = 1,
-    ElIf = 2,
-    Else = 3,
-}
-
-
-#[cfg(test)]
-mod tests {
-    use super::MagicFlags;
-    use crate::magic::CmpType;
-
-    #[test]
-    fn test_main() {
-        let y = MagicFlags::from(10u8);
-        let x = MagicFlags::INDIR;
-        println!("{:?}, {:?}", x, y);
-        println!("{:?}", MagicFlags::all())
+impl Default for Value {
+    fn default() -> Self {
+        Value::U64(0)
     }
+}
 
-    #[test]
-    fn test_from_i32_to_cmp_typ() {
-        let x = CmpType::all();
-        for i in x {
-            println!("{}", i.to_string())
+#[derive(Debug, PartialEq)]
+pub enum UnOperator {
+    Absolute,
+    Relative,
+    Indirect(SignValType),
+}
+
+#[derive(Debug, PartialEq)]
+pub enum Action {
+    Num { op: Operator, val: Rc<Expression> },
+    Str { flags: MaskFlags, range: u64 },
+}
+
+impl Action {
+    pub fn update_range(self, range: u64) -> Action {
+        match self {
+            Action::Str {
+                flags,
+                range: _range,
+            } => Action::Str { flags, range },
+            _ => self,
         }
     }
 
-    #[test]
-    fn test_from_string_to_cmp_typ() {
-        let testcases = vec![
-            ("use", CmpType::Use),
-            ("invalid", CmpType::Invalid),
-        ];
-        for (name, typ) in testcases {
-            assert_eq!(CmpType::from(name.to_string()), typ)
+    pub fn update_flags(self, new_flags: MaskFlags) -> Action {
+        match self {
+            Action::Str { flags, range } => Action::Str {
+                flags: flags | new_flags,
+                range,
+            },
+            _ => self,
         }
+    }
+
+    pub fn default_str() -> Self {
+        Action::Str {
+            flags: MaskFlags::NONE,
+            range: 0,
+        }
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub enum Expression {
+    UnOp(UnOperator, Rc<Expression>, Option<Action>),
+    Val(Value),
+}
+
+impl Expression {
+    pub fn unop_indir(
+        typ: Option<SignValType>,
+        exp: Rc<Expression>,
+        mask: Option<Action>,
+    ) -> Rc<Expression> {
+        let typ = typ.unwrap_or(Default::default());
+        Rc::new(Expression::UnOp(UnOperator::Indirect(typ), exp, mask))
+    }
+
+    pub fn unop_rel(exp: Rc<Expression>, mask: Option<Action>) -> Rc<Expression> {
+        Rc::new(Expression::UnOp(UnOperator::Relative, exp, mask))
+    }
+
+    pub fn unop_abs(exp: Rc<Expression>, mask: Option<Action>) -> Rc<Expression> {
+        if mask.is_none() {
+            exp
+        } else {
+            Rc::new(Expression::UnOp(UnOperator::Absolute, exp, mask))
+        }
+    }
+
+    pub fn val(v: Value) -> Rc<Expression> {
+        Rc::new(Expression::Val(v))
+    }
+}
+
+impl Default for Expression {
+    fn default() -> Self {
+        Expression::Val(Value::U64(0))
     }
 }

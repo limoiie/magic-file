@@ -30,7 +30,7 @@ impl From<&str> for FactorOp {
 }
 
 #[derive(Debug, Default, PartialEq)]
-pub(crate) struct AuxTypes {
+pub struct AuxTypes {
     mime: Option<String>,
     apple: Option<String>,
     exts: Vec<String>,
