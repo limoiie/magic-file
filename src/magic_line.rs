@@ -7,15 +7,35 @@ use crate::magic::*;
 
 use crate::magic::Expression as Expr;
 
+#[derive(Debug, PartialEq)]
+pub enum AuxType {
+    Mime(String),
+    Apple(String),
+    Exts(Vec<String>),
+}
+
 #[derive(Debug, Default, PartialEq)]
-pub struct Aux {
+pub struct AuxTypes {
     mime: Option<String>,
     apple: Option<String>,
     exts: Vec<String>,
 }
 
-impl Aux {
-    pub fn parse_line(line: &str) -> AuxLine {
+#[derive(Debug, Default, PartialEq)]
+pub struct AuxStrength {
+    pub op: Operator,
+    pub val: u32,
+}
+
+#[derive(Debug, PartialEq)]
+pub enum AuxLine {
+    Type(AuxType),
+    Strength(AuxStrength),
+}
+
+
+impl AuxLine {
+    pub(crate) fn parse_line(line: &str) -> AuxLine {
         magic_line::aux(line).unwrap()
     }
 }
@@ -26,7 +46,7 @@ pub struct MagicLine {
     pub exp: Rc<Expr>,
     pub desc: String,
     pub typ_code: u32,
-    pub aux: Option<Aux>,
+    pub aux: Option<AuxTypes>,
 }
 
 lazy_static! {
@@ -200,7 +220,7 @@ peg::parser! {
 
     pub rule strength() -> AuxLine
       = op:strength_op() __? val:digit_u32() {
-        AuxLine::Strength(AuxFactor { op, val })
+        AuxLine::Strength(AuxStrength { op, val })
       }
 
     pub rule comment() = __ ['#'] [_]*

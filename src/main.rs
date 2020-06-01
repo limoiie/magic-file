@@ -7,7 +7,6 @@ extern crate peg;
 extern crate regex;
 
 use std::fs;
-use std::path::Path;
 
 mod magic;
 mod magic_entry;
@@ -20,7 +19,7 @@ fn main() {
     for f in fs::read_dir("/usr/share/file/magic").unwrap() {
         let p = f.unwrap().path();
         println!("parsing {:?}...", p);
-        magic_file::MagicFile::parse(p);
+        magic_file::MagicFile::parse(p).unwrap();
     }
     println!("hello, world!");
 }

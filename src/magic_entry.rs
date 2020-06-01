@@ -2,13 +2,12 @@ use std::fmt::Debug;
 use std::io;
 use std::iter::Peekable;
 
-use crate::magic::{AuxFactor, AuxLine};
-use crate::magic_line::{Aux, MagicLine};
+use crate::magic_line::{MagicLine, AuxLine, AuxStrength, AuxType};
 
 #[derive(Debug, Default)]
 pub(crate) struct MagicEntry {
     lines: Vec<MagicLine>,
-    factor: Option<AuxFactor>,
+    factor: Option<AuxStrength>,
 }
 
 impl MagicEntry {
@@ -21,7 +20,7 @@ impl MagicEntry {
                 if self.meet_new_entry(line.as_str()) {
                     return;
                 }
-                self.parse_line(line.as_str());
+                self.digest_line(line.as_str());
             }
             lines.next();
         }
@@ -31,28 +30,39 @@ impl MagicEntry {
         !self.lines.is_empty() && MagicLine::is_entry_line(line)
     }
 
-    fn parse_line(&mut self, line: &str) {
+    fn digest_line(&mut self, line: &str) {
         // println!("parsing {}...", line);
 
         let mut chars = line.chars();
         match chars.next() {
+            // blank line
             None => return,
+            // comment line
             Some('#') => return,
-            Some('!') if Some(':') == chars.next() => self.handle_aux_line(&line[2..]),
-            _ => self.handle_magic_line(line),
-        }
-    }
-
-    fn handle_magic_line(&mut self, line: &str) {
-        self.lines.push(MagicLine::parse_line(line))
-    }
-
-    fn handle_aux_line(&mut self, line: &str) {
-        match Aux::parse_line(line) {
-            AuxLine::Type(typ) => {
-                self.lines.last_mut().unwrap().attach_aux(typ);
+            // aux line, which contains either a type or a strength
+            Some('!') if Some(':') == chars.next() => {
+                match AuxLine::parse_line(&line[2..]) {
+                    AuxLine::Type(typ) => {
+                        self.attach_aux_type_to_last_line(typ)
+                    }
+                    AuxLine::Strength(factor) => {
+                        self.attach_strength_to_entry(factor)
+                    }
+                }
             }
-            AuxLine::Strength(factor) => self.factor = Some(factor),
+            // otherwise, must be a magic line
+            _ => {
+                self.lines.push(MagicLine::parse_line(line))
+            }
         }
     }
+
+    fn attach_aux_type_to_last_line(&mut self, typ: AuxType) {
+        self.lines.last_mut().unwrap().attach_aux(typ)
+    }
+
+    fn attach_strength_to_entry(&mut self, factor: AuxStrength) {
+        self.factor = Some(factor)
+    }
+
 }

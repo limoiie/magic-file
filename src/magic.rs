@@ -524,22 +524,3 @@ impl Default for Expression {
         Expression::Val(Value::U64(0))
     }
 }
-
-#[derive(Debug, PartialEq)]
-pub enum AuxType {
-    Mime(String),
-    Apple(String),
-    Exts(Vec<String>),
-}
-
-#[derive(Debug, Default, PartialEq)]
-pub struct AuxFactor {
-    pub op: Operator,
-    pub val: u32,
-}
-
-#[derive(Debug, PartialEq)]
-pub enum AuxLine {
-    Type(AuxType),
-    Strength(AuxFactor),
-}
