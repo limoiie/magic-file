@@ -2,9 +2,9 @@ use std::fmt::Debug;
 use std::io;
 use std::iter::Peekable;
 
-use crate::magic::{Action, Expression, Operator, ValType};
+use crate::magic::{Operator, ValType};
 use crate::magic_line::{AuxLine, AuxStrength, AuxType, MagicLine};
-use std::cmp::max;
+use std::cmp;
 
 /// Magic entry to provide a sequence of check rules
 ///
@@ -93,7 +93,7 @@ impl MagicEntry {
             typ if typ.is_i64() => STRENGTH_UNIT * 8,
             ValType::PString | ValType::String => STRENGTH_UNIT * fn_str_len()?,
             ValType::LEString16 | ValType::BEString16 => STRENGTH_UNIT * fn_str_len()? / 2,
-            ValType::Search => max(STRENGTH_UNIT, fn_str_len()?),
+            ValType::Search => cmp::max(STRENGTH_UNIT, fn_str_len()?),
             ValType::Der | ValType::Regex => STRENGTH_UNIT,
             _ => 0,
         })

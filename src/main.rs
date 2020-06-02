@@ -1,3 +1,5 @@
+#![feature(bufreader_seek_relative)]
+
 #[macro_use]
 extern crate bitflags;
 #[macro_use]
@@ -12,6 +14,16 @@ mod magic;
 mod magic_entry;
 mod magic_file;
 mod magic_line;
+mod magic_match;
+
+mod magic_match_filesystem;
+mod magic_match_ascii;
+mod magic_match_tar;
+mod magic_match_json;
+mod magic_match_softmagic;
+
+mod raw_bytes;
+mod ext_buf;
 
 // use clap::{App, Arg};
 
