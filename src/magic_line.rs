@@ -62,7 +62,7 @@ pub struct MagicLine {
 }
 
 lazy_static! {
-    static ref RE_ENTRY: Regex = Regex::new(r"^\s*[0-9(&]").unwrap();
+    static ref RE_ENTRY: Regex = Regex::new(r"^\s*[0-9(&\-+]").unwrap();
 }
 
 impl MagicLine {
