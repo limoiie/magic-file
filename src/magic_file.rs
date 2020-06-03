@@ -1,4 +1,4 @@
-use crate::magic_entry::MagicEntry;
+use crate::magic_entry::{MagicEntry, MagicEntryBuilder};
 use std::fs::File;
 use std::io;
 use std::io::BufRead;
@@ -27,8 +27,12 @@ impl MagicFile {
         let mut lines_iter = read_lines(&magic_file)?.into_iter().peekable();
         while lines_iter.peek().is_some() {
             // println!("\n=================================");
-            let entry = MagicEntry::parse_entry(&mut lines_iter);
-            magic.insert_entry(entry);
+            let entry = MagicEntryBuilder::new()
+                .parse_until_new_entry(&mut lines_iter)
+                .build();
+            if let Some(entry) = entry {
+                magic.insert_entry(entry);
+            }
         }
         magic.sort_by_strength();
         Ok(magic)

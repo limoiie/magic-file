@@ -1,4 +1,4 @@
-use std::io::{BufRead, BufReader, Read, Seek, SeekFrom};
+use std::io::{BufRead, BufReader, Read, Seek};
 
 use crate::magic_match::{MResult, MagicMatch};
 
@@ -135,8 +135,6 @@ impl MagicAsciiMatcher {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     #[test]
     fn test() {
         println!("hello, world");

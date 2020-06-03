@@ -1,6 +1,8 @@
 use std::io::{Read, Seek, SeekFrom};
 use std::{io, mem};
 
+/// Map the given object into raw bytes with the length as same as
+/// the type size.
 pub(crate) fn to_bytes<T>(t: &T) -> &[u8] {
     let len = mem::size_of::<T>();
     let raw = t as *const T as *const u8;

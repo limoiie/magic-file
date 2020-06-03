@@ -9,6 +9,7 @@ extern crate peg;
 extern crate regex;
 
 use std::fs;
+use crate::magic_file::MagicFile;
 
 mod magic;
 mod magic_entry;
@@ -24,6 +25,7 @@ mod magic_match_softmagic;
 
 mod raw_bytes;
 mod ext_buf;
+mod tree;
 
 // use clap::{App, Arg};
 
@@ -33,5 +35,6 @@ fn main() {
         println!("parsing {:?}...", p);
         magic_file::MagicFile::parse(p).unwrap();
     }
+    // MagicFile::parse("/usr/share/file/magic/weak");
     println!("hello, world!");
 }
