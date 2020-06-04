@@ -1,13 +1,14 @@
+use std::cell::RefCell;
+use std::cmp;
 use std::fmt::Debug;
 use std::io;
 use std::iter::Peekable;
+use std::rc::Rc;
 
-use crate::magic::{Operator, ValType};
+use crate::expr::Operator;
+use crate::expr_value::ValType;
 use crate::magic_line::{AuxLine, AuxStrength, AuxType, MagicLine};
 use crate::tree::{TreeNode, TreeNodeBuilder};
-use bitflags::_core::cell::{Ref, RefCell, RefMut};
-use std::cmp;
-use std::rc::Rc;
 
 const STRENGTH_UNIT: i32 = 10;
 
@@ -19,7 +20,7 @@ const STRENGTH_UNIT: i32 = 10;
 #[derive(Debug)]
 pub(crate) struct MagicEntry {
     /// a sequence of rule lines
-    root: Rc<RefCell<TreeNode<MagicLine>>>,
+    pub(crate) root: Rc<RefCell<TreeNode<MagicLine>>>,
     /// represents for the priority of entry
     strength: i32,
 }
@@ -135,6 +136,7 @@ impl MagicEntryBuilder {
         self.strength_by_factor(strength).unwrap_or(1)
     }
 
+    /// Compute the strength contributed by the the comparison value
     fn strength_delta_from_cmp_val(&self) -> Option<i32> {
         let magic_line = &self.last_node.as_ref().unwrap().borrow().val;
         let fn_str_len = || Some(magic_line.reln_val()?.str_len()? as i32);
@@ -151,6 +153,7 @@ impl MagicEntryBuilder {
         })
     }
 
+    /// Compute the strength contributed by the the comparison operation
     fn strength_delta_from_cmp_op(&self) -> Option<i32> {
         let magic_line = &self.last_node.as_ref().unwrap().borrow().val;
         Some(match magic_line.reln_op()? {
@@ -161,6 +164,7 @@ impl MagicEntryBuilder {
         })
     }
 
+    /// Apply the factor provied by user to the accumulated strength
     fn strength_by_factor(&self, strength: i32) -> Option<i32> {
         let AuxStrength { op, val } = self.factor.as_ref()?;
         Some(match op {

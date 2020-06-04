@@ -3,9 +3,10 @@ use std::rc::Rc;
 use std::str;
 use std::str::FromStr;
 
-use crate::magic::*;
+use crate::expr::*;
 
-use crate::magic::Expression as Expr;
+use crate::expr::Expression as Expr;
+use crate::expr_value::{Value, ValType, SignValType};
 
 #[derive(Debug, PartialEq)]
 pub enum AuxType {

@@ -14,7 +14,7 @@ where
 
 #[derive(Default, Debug)]
 pub(crate) struct MagicFile {
-    entries: Vec<MagicEntry>,
+    pub(crate) entries: Vec<MagicEntry>,
 }
 
 impl MagicFile {

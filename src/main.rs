@@ -9,9 +9,8 @@ extern crate peg;
 extern crate regex;
 
 use std::fs;
-use crate::magic_file::MagicFile;
 
-mod magic;
+mod expr;
 mod magic_entry;
 mod magic_file;
 mod magic_line;
@@ -26,6 +25,7 @@ mod magic_match_softmagic;
 mod raw_bytes;
 mod ext_buf;
 mod tree;
+mod expr_value;
 
 // use clap::{App, Arg};
 
