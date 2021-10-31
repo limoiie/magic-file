@@ -1,18 +1,18 @@
 use std::fs::File;
 use std::io::{BufReader, Read, Seek};
 
-use crate::magic_file::MagicFile;
-use crate::magic_match::{MResult, MagicMatch};
-use crate::expr::{Expression, UnOperator};
+use crate::expr::{Action, Expression, UnOperator};
+use crate::expr_value::{Value, SignValType, ValType};
 use crate::magic_entry::MagicEntry;
+use crate::magic_file::MagicFile;
 use crate::magic_line::MagicLine;
+use crate::magic_match::{MResult, MagicMatch};
 use std::rc::Rc;
-use crate::expr_value::Value;
 
 struct MatchRecord {
     matched_start: i64,
     matched_end: Rc<Value>,
-    fetched_val: Option<Value>
+    fetched_val: Option<Value>,
 }
 
 pub(crate) struct MagicMatcher {
@@ -38,7 +38,7 @@ impl MagicMatcher {
         let mut stack = vec![root];
 
         while let Some(current) = stack.pop() {
-            ctx.last_offset = match self.match_rec.last() {
+            ctx.relative_offset = match self.match_rec.last() {
                 Some(rec) => rec.matched_end.clone(),
                 None => Rc::new(Value::I64(0)),
             };
@@ -61,15 +61,24 @@ impl MagicMatcher {
 
 struct MatchContext<'a, S: Seek + Read> {
     start: i64,
-    last_offset: Rc<Value>,
+    relative_offset: Rc<Value>,
+    indirect_offset: Rc<Value>,
+    indirect_type: SignValType,
     mem: &'a BufReader<S>,
 }
 
 impl<'a, S: Seek + Read> MatchContext<'a, S> {
     pub fn new(start: i64, last_offset: i64, mem: &'a mut BufReader<S>) -> Self {
-        let last_offset = Value::I64(last_offset);
-        let last_offset = Rc::new(last_offset);
-        MatchContext { start, last_offset, mem }
+        let relative_offset = Rc::new(Value::I64(last_offset));
+        let indirect_offset = Rc::new(Value::I64(start));
+        let indirect_type = SignValType::new(true, ValType::Quad);
+        MatchContext {
+            start,
+            relative_offset,
+            indirect_offset,
+            indirect_type,
+            mem,
+        }
     }
 }
 
@@ -77,23 +86,46 @@ impl Expression {
     fn eval<S: Seek + Read>(&self, ctx: &mut MatchContext<S>) -> Rc<Value> {
         match self {
             Expression::UnOp(op, exp, act) => {
-                let exp = exp.eval(ctx);
-                let exp = match op {
-                    UnOperator::Absolute => exp,
-                    UnOperator::Relative => {
-                        Expression::add(exp.clone(), ctx.last_offset.clone())
-                    }
-                    UnOperator::Indirect(_) => {
-                        // todo indirect fetch and cast
-                        exp
+                let val = exp.eval(ctx);
+
+                // very strange mechanism: the offset of the indirect action in the right
+                // hand side is based on the value of the left hand
+                let old_indir_offset = ctx.indirect_offset.clone();
+                ctx.indirect_offset = val.clone();
+                let mask_val = match act {
+                    None => None,
+                    Some(action) => match action {
+                        Action::Num { op, val } => Some(val.eval(ctx)),
+                        Action::Str { flags, range } => {
+                            // TODO need implementation
+                            None
+                        }
                     },
                 };
-                // todo action
+                ctx.indirect_offset = old_indir_offset;
+
+                let exp = match op {
+                    UnOperator::Absolute => val,
+                    UnOperator::Relative => {
+                        Expression::add(val.clone(), ctx.relative_offset.clone())
+                    }
+                    UnOperator::Indirect(typ) => {
+                        if let Some(action) = act {
+                            match action {
+                                Action::Num { op, val } => {}
+                                Action::Str { flags, range } => {}
+                            }
+                        };
+
+                        // todo indirect fetch and cast
+                        val
+                    }
+                };
+
                 exp
-            },
+            }
             Expression::Val(val) => val.clone(),
         }
-        // Rc::new(Value::I64(0))
     }
 
     fn add(lhs: Rc<Value>, rhs: Rc<Value>) -> Rc<Value> {
@@ -116,7 +148,7 @@ mod tests {
         let magic_file = MagicFile::parse("/usr/share/file/magic/pdf").unwrap();
         let mut matcher = MagicMatcher {
             magic: magic_file,
-            match_rec: vec![]
+            match_rec: vec![],
         };
 
         let path = "/Users/ligengwang/Downloads/IDAPython-Book.pdf";
