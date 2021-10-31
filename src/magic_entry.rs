@@ -50,8 +50,8 @@ impl MagicEntryBuilder {
     }
 
     pub(crate) fn parse_until_new_entry<P>(mut self, lines: &mut Peekable<P>) -> Self
-    where
-        P: Iterator<Item = io::Result<String>>,
+        where
+            P: Iterator<Item=io::Result<String>>,
     {
         while let Some(line_res) = lines.peek() {
             if let Ok(line) = line_res {
@@ -164,7 +164,7 @@ impl MagicEntryBuilder {
         })
     }
 
-    /// Apply the factor provied by user to the accumulated strength
+    /// Apply the factor provied by magic file author to the accumulated strength
     fn strength_by_factor(&self, strength: i32) -> Option<i32> {
         let AuxStrength { op, val } = self.factor.as_ref()?;
         Some(match op {

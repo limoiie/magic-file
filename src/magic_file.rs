@@ -5,8 +5,8 @@ use std::io::BufRead;
 use std::path::Path;
 
 fn read_lines<P>(filename: P) -> io::Result<io::Lines<io::BufReader<File>>>
-where
-    P: AsRef<Path>,
+    where
+        P: AsRef<Path>,
 {
     let file = File::open(filename)?;
     Ok(io::BufReader::new(file).lines())
@@ -19,8 +19,8 @@ pub(crate) struct MagicFile {
 
 impl MagicFile {
     pub(crate) fn parse<P>(magic_file: P) -> io::Result<MagicFile>
-    where
-        P: AsRef<Path>,
+        where
+            P: AsRef<Path>,
     {
         let mut magic = MagicFile::default();
 

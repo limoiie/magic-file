@@ -34,7 +34,6 @@ pub enum AuxLine {
     Strength(AuxStrength),
 }
 
-
 impl AuxLine {
     pub(crate) fn parse_line(line: &str) -> AuxLine {
         let aux_line = magic_line::aux(line).unwrap();
@@ -43,10 +42,11 @@ impl AuxLine {
     }
 }
 
+
 /// Magic line corresponds to one line in the magic file
 ///
-/// The magic line is in the form like below:
-///   >>>[offset] [type][mask?] [reln] [desc]|?[type_code]
+/// The magic line is in the form:
+/// > `>>>[offset] [type][mask?] [reln] [desc]|?[type_code]`
 ///
 /// Note, there will also be some aux lines just under the current
 /// line. These aux lines provide complement type info
@@ -69,7 +69,7 @@ lazy_static! {
 impl MagicLine {
     /// Check if the given line is the start of a magic entry
     ///
-    /// A line is the start of a entry if it starts with cont level
+    /// A line is the start of a entry if it starts without cont level
     /// or the offset expression
     pub(crate) fn is_entry_line(line: &str) -> bool {
         RE_ENTRY.is_match(line)
@@ -78,7 +78,7 @@ impl MagicLine {
     /// Parse new magic line
     ///
     /// The magic line should be in the form like below:
-    ///   >>>[offset] [type][mask?] [reln] [desc]|?[type_code]
+    /// > `>>>[offset] [type][mask?] [reln] [desc]|?[type_code]`
     pub(crate) fn parse_line(line: &str) -> Self {
         let magic_line = magic_line::line(line).unwrap();
         // println!("{:?}", magic_line);
@@ -102,7 +102,7 @@ impl MagicLine {
     pub(crate) fn reln_val(&self) -> Option<&Value> {
         if let Action::Num { op: _, val } = self.reln.as_ref()? {
             if let Expression::Val(val) = val.as_ref() {
-                return Some(val)
+                return Some(val);
             }
         }
         None
@@ -111,7 +111,7 @@ impl MagicLine {
     /// Return the operatorr in the reln expression
     pub(crate) fn reln_op(&self) -> Option<&Operator> {
         if let Action::Num { op, val } = self.reln.as_ref()? {
-            return Some(op)
+            return Some(op);
         }
         None
     }

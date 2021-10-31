@@ -21,7 +21,7 @@ mod tests {
 
     #[test]
     fn test() {
-        let path = "/Users/ligengwang/Downloads/nmt_inspired.zip";
+        let path = "/Users/ligengwang/Downloads/test.zip";
         let file = File::open(path).unwrap();
         let mut buff = BufReader::new(file);
         let mut matcher = MagicFileSystemMatcher::default();
